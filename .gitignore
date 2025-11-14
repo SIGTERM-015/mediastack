@@ -1,7 +1,6 @@
 .env
 letsencrypt/*
 config/*
-
-!config/cloudflare-ddns/config.json
-!config/recyclarr/*
+!config/recyclarr/
+!config/recyclarr/**
 
