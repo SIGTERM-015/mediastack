@@ -1,7 +1,7 @@
 name: media-stack
 services:
-  cloudflare-dns:
-    container_name: cloudflare-dns
+  dnsfik:
+    container_name: dnsfik
     image: ghcr.io/sigterm-015/dnsfik:latest
     networks:
       - mynetwork
