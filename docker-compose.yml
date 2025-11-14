@@ -16,8 +16,8 @@ services:
       - DNS_DEFAULT_PROXIED=false
       - DNS_DEFAULT_TTL=300
       - RETRY_ATTEMPTS=3
-      - RETRY_DELAY=600
-      - IP_CHECK_INTERVAL=300
+      - RETRY_DELAY=600000
+      - IP_CHECK_INTERVAL=600000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
