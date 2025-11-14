@@ -1,0 +1,384 @@
+name: media-stack
+services:
+  cloudflare-dns:
+    container_name: cloudflare-dns
+    image: marlburrow/cloudflare-dns-swarm:latest
+    networks:
+      - mynetwork
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - CLOUDFLARE_TOKEN=${CF_DNS_API_TOKEN}
+      - USE_TRAEFIK_LABELS=true
+      - LOG_LEVEL=info
+      - DNS_DEFAULT_RECORD_TYPE=A
+      - DNS_DEFAULT_PROXIED=false
+      - DNS_DEFAULT_TTL=300
+      - RETRY_ATTEMPTS=3
+      - RETRY_DELAY=600
+      - IP_CHECK_INTERVAL=300
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  traefik:
+    container_name: traefik
+    image: traefik:v3.3
+    networks:
+      - mynetwork
+    command:
+      - "--log.level=INFO"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=mynetwork"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.websecure.http.middlewares=gzip-compress@docker"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.letsencrypt.acme.email=acme@${DOMAIN}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - "CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}"
+
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    labels:
+      - "traefik.http.middlewares.gzip-compress.compress=true"
+    restart: unless-stopped
+
+  qbittorrent:
+    container_name: qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:5.1.2
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=5080
+    volumes:
+      - ./config/qbittorrent:/config
+      - ${MEDIA_PATH}/torrents:/downloads
+    ports:
+      - 6881:6881
+      - 6881:6881/udp
+      - 5080:5080
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qbittorrent.rule=Host(`qbittorrent.${DOMAIN}`)"
+      - "traefik.http.routers.qbittorrent.entrypoints=websecure"
+      - "traefik.http.routers.qbittorrent.tls=true"
+      - "traefik.http.routers.qbittorrent.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.qbittorrent.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.qbittorrent.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.services.qbittorrent.loadbalancer.server.port=5080"
+      - "dns.cloudflare.hostname=qbittorrent.${DOMAIN}"
+      - "dns.cloudflare.content=${LOCAL_IP}"
+    restart: "unless-stopped"
+
+  radarr:
+    container_name: radarr
+    image: lscr.io/linuxserver/radarr:5.28.0
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./config/radarr:/config
+      - ${MEDIA_PATH}/torrents:/downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.radarr.rule=Host(`radarr.${DOMAIN}`)"
+      - "traefik.http.routers.radarr.entrypoints=websecure"
+      - "traefik.http.routers.radarr.tls=true"
+      - "traefik.http.routers.radarr.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.radarr.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.radarr.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+      - "dns.cloudflare.content=${LOCAL_IP}"
+    restart: "unless-stopped"
+
+  sonarr:
+    image: linuxserver/sonarr:4.0.16
+    container_name: sonarr
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./config/sonarr:/config
+      - ${MEDIA_PATH}/torrents:/downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.${DOMAIN}`)"
+      - "traefik.http.routers.sonarr.entrypoints=websecure"
+      - "traefik.http.routers.sonarr.tls=true"
+      - "traefik.http.routers.sonarr.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.sonarr.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.sonarr.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+      - "dns.cloudflare.content=${LOCAL_IP}"
+    restart: unless-stopped
+
+  sonarr-anime:
+    image: linuxserver/sonarr:4.0.16
+    container_name: sonarr-anime
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./config/sonarr-anime:/config
+      - ${MEDIA_PATH}/torrents:/downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarr-anime.rule=Host(`sonarr-anime.${DOMAIN}`)"
+      - "traefik.http.routers.sonarr-anime.entrypoints=websecure"
+      - "traefik.http.routers.sonarr-anime.tls=true"
+      - "traefik.http.routers.sonarr-anime.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.sonarr-anime.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.sonarr-anime.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.services.sonarr-anime.loadbalancer.server.port=8989"
+      - "dns.cloudflare.content=${LOCAL_IP}"
+    restart: unless-stopped
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./config/bazarr:/config
+      - ${MEDIA_PATH}/torrents:/downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bazarr.rule=Host(`bazarr.${DOMAIN}`)"
+      - "traefik.http.routers.bazarr.entrypoints=websecure"
+      - "traefik.http.routers.bazarr.tls=true"
+      - "traefik.http.routers.bazarr.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.bazarr.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.bazarr.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.services.bazarr.loadbalancer.server.port=6767"
+      - "dns.cloudflare.content=${LOCAL_IP}"
+    restart: unless-stopped
+
+  lingarr:
+    image: lingarr/lingarr:latest
+    container_name: lingarr
+    networks:
+      - mynetwork
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_URLS=http://+:9876
+    ports:
+      - "9876:9876"
+    volumes:
+      - ./config/lingarr:/app/config
+      - ${MEDIA_PATH}/torrents:/downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lingarr.rule=Host(`lingarr.${DOMAIN}`)"
+      - "traefik.http.routers.lingarr.entrypoints=websecure"
+      - "traefik.http.routers.lingarr.tls=true"
+      - "traefik.http.routers.lingarr.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.lingarr.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.lingarr.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.services.lingarr.loadbalancer.server.port=9876"
+      - "dns.cloudflare.content=${LOCAL_IP}"
+
+  prowlarr:
+    container_name: prowlarr
+    image: linuxserver/prowlarr:2.1.5
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./config/prowlarr:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.${DOMAIN}`)"
+      - "traefik.http.routers.prowlarr.entrypoints=websecure"
+      - "traefik.http.routers.prowlarr.tls=true"
+      - "traefik.http.routers.prowlarr.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.prowlarr.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.prowlarr.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
+      - "dns.cloudflare.content=${LOCAL_IP}"
+    restart: unless-stopped
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:2.7.3
+    container_name: jellyseerr
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./config/jellyseerr:/app/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyseerr.rule=Host(`jellyseerr.${DOMAIN}`)"
+      - "traefik.http.routers.jellyseerr.entrypoints=websecure"
+      - "traefik.http.routers.jellyseerr.tls=true"
+      - "traefik.http.routers.jellyseerr.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jellyseerr.loadbalancer.server.port=5055"
+    restart: unless-stopped
+
+  jellyfin:
+    image: linuxserver/jellyfin:10.11.2
+    container_name: jellyfin
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./config/jellyfin:/config
+      - ${MEDIA_PATH}/torrents:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ports:
+      - 7359:7359/udp
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN}`)"
+      - "traefik.http.routers.jellyfin.entrypoints=websecure"
+      - "traefik.http.routers.jellyfin.tls=true"
+      - "traefik.http.routers.jellyfin.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+    restart: unless-stopped
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ}
+    networks:
+      - mynetwork
+    restart: unless-stopped
+
+  samba:
+    image: dockurr/samba
+    container_name: samba
+    hostname: gonk
+    networks:
+      - mynetwork
+    environment:
+      - UID=${PUID}
+      - GID=${PGID}
+      - NAME=Media
+      - USER=${SAMBA_USERNAME}
+      - PASS=${SAMBA_PASSWORD}
+    ports:
+      - 445:445
+    volumes:
+      - ${MEDIA_PATH}/torrents:/storage
+    restart: unless-stopped
+
+  scrutiny:
+    image: ghcr.io/analogj/scrutiny:master-omnibus
+    container_name: scrutiny
+    networks:
+      - mynetwork
+    cap_add:
+      - SYS_RAWIO
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - COLLECTOR_CRON_SCHEDULE=0 0 * * *
+    volumes:
+      - /run/udev:/run/udev:ro
+      - ./config/scrutiny:/opt/scrutiny/config
+      - ./config/scrutiny/influxdb:/opt/scrutiny/influxdb
+    devices:
+      - /dev/sda
+      - /dev/sdb
+      - /dev/sdc
+      - /dev/md0
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.scrutiny.rule=Host(`scrutiny.${DOMAIN}`)"
+      - "traefik.http.routers.scrutiny.entrypoints=websecure"
+      - "traefik.http.routers.scrutiny.tls=true"
+      - "traefik.http.routers.scrutiny.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.scrutiny.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.scrutiny.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.services.scrutiny.loadbalancer.server.port=8080"
+      - "dns.cloudflare.content=${LOCAL_IP}"
+    restart: unless-stopped
+
+  wizarr:
+    image: ghcr.io/wizarrrr/wizarr:latest
+    container_name: wizarr
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - APP_URL=https://wizarr.${DOMAIN}
+    volumes:
+      - ./config/wizarr:/data/database
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wizarr.rule=Host(`wizarr.${DOMAIN}`)"
+      - "traefik.http.routers.wizarr.entrypoints=websecure"
+      - "traefik.http.routers.wizarr.tls=true"
+      - "traefik.http.routers.wizarr.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.wizarr.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.wizarr.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.services.wizarr.loadbalancer.server.port=5690"
+    restart: unless-stopped
+
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr:latest
+    container_name: recyclarr
+    user: ${PUID}:${PGID}
+    networks:
+      - mynetwork
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs: /tmp
+    volumes:
+      - ./config/recyclarr:/config
+    environment:
+      - TZ=${TZ}
+      - SONARR_API_KEY=${SONARR_API_KEY}
+      - SONARR_ANIME_API_KEY=${SONARR_ANIME_API_KEY}
+      - RADARR_API_KEY=${RADARR_API_KEY}
+    restart: unless-stopped
+    
+
+networks:
+  mynetwork:
+    external: true
