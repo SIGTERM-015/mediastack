@@ -9,7 +9,7 @@
 sonarr:
   sonarr-main:
     base_url: http://sonarr:8989
-    api_key: !env SONARR_API_KEY
+    api_key: !env_var SONARR_API_KEY
 
     # Quality definitions optimized for series
     include:
@@ -86,7 +86,7 @@ sonarr:
   # Sonarr - Anime
   sonarr-anime:
     base_url: http://sonarr-anime:8989
-    api_key: !env SONARR_ANIME_API_KEY
+    api_key: !env_var SONARR_ANIME_API_KEY
 
     # Anime-specific quality definitions and profiles
     include:
@@ -181,7 +181,7 @@ sonarr:
 radarr:
   radarr-main:
     base_url: http://radarr:7878
-    api_key: !env RADARR_API_KEY
+    api_key: !env_var RADARR_API_KEY
 
     # Quality definitions for movies
     include:
