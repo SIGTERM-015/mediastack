@@ -2,8 +2,7 @@ name: media-stack
 services:
   cloudflare-dns:
     container_name: cloudflare-dns
-    image: marlburrow/cloudflare-dns-swarm:latest
-    user: "0:0"
+    image: ghcr.io/sigterm-015/dnsfik:latest
     networks:
       - mynetwork
     security_opt:
@@ -82,7 +81,6 @@ services:
       - "traefik.http.routers.qbittorrent.tls.domains[0].sans=*.${DOMAIN}"
       - "traefik.http.routers.qbittorrent.middlewares=gzip-compress@docker"
       - "traefik.http.services.qbittorrent.loadbalancer.server.port=5080"
-      - "dns.cloudflare.hostname=qbittorrent.${DOMAIN}"
       - "dns.cloudflare.content=${LOCAL_IP}"
     restart: "unless-stopped"
 
