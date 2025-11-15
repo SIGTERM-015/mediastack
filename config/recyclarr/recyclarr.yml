@@ -93,7 +93,20 @@ sonarr:
       - template: sonarr-quality-definition-anime
       - template: sonarr-v4-quality-profile-anime
       - template: sonarr-v4-custom-formats-anime
-
+    custom_formats:
+      - custom_formats:
+          - name: Multi-Subs
+            includeCustomFormatWhenRenaming: false
+            specifications:
+              - name: Multi-Subs
+                implementation: ReleaseTitleSpecification
+                negate: false
+                required: false
+                fields:
+                  - value: /Multi[- ]?Subs/i
+        assign_scores_to:
+          - name: Remux-1080p - Anime
+            score: 1500 
 # Radarr - Movies
 radarr:
   radarr-main:
