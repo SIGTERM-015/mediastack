@@ -276,6 +276,7 @@ services:
               capabilities: [gpu]
     ports:
       - 7359:7359/udp
+      - 8096:8096
     labels:
       - "traefik.enable=true"
       ## HTTP Router
