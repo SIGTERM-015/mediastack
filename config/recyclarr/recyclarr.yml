@@ -93,12 +93,6 @@ sonarr:
       - template: sonarr-quality-definition-anime
       - template: sonarr-v4-quality-profile-anime
       - template: sonarr-v4-custom-formats-anime
-    release_profiles:
-      - name: Prefer Multi-Subs
-        preferred:
-          - term: '(?i)\bmulti[-\s]?subs?\b'
-            regex: true
-            score: 100
 # Radarr - Movies
 radarr:
   radarr-main:
