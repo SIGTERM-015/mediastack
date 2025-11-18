@@ -453,7 +453,7 @@ services:
       - "traefik.http.routers.wg-easy.tls.domains[0].sans=*.${DOMAIN}"
       - "traefik.http.routers.wg-easy.middlewares=gzip-compress@docker"
       - "traefik.http.services.wg-easy.loadbalancer.server.port=51821"
-      - "dns.cloudflare.content=${LOCAL_IP}"
+      - "dns.cloudflare.content=public_ip"
     restart: unless-stopped
     
 
