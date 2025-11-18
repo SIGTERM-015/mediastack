@@ -426,7 +426,7 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-      - WG_HOST=vpn.${DOMAIN}
+      - WG_HOST=jellyfin.${DOMAIN}
       - PASSWORD_HASH=${WG_PASSWORD_HASH}
       - PORT=51821
       - WG_PORT=51820
