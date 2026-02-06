@@ -3,4 +3,8 @@ letsencrypt/*
 docker-compose.override.yml
 config/*
 !config/recyclarr/settings.yml
+!config/observability/
 
+# Decypharr
+config/decypharr/*
+!config/decypharr/config.json.example
