@@ -1,6 +1,6 @@
 .env
 letsencrypt/*
+docker-compose.override.yml
 config/*
-!config/recyclarr/
-!config/recyclarr/**
+!config/recyclarr/settings.yml
 
