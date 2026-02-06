@@ -84,6 +84,36 @@ services:
       - "dns.cloudflare.content=${LOCAL_IP}"
     restart: "unless-stopped"
 
+  decypharr:
+    container_name: decypharr
+    image: cy01/blackhole:latest
+    networks:
+      - mynetwork
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - /mnt/:/mnt:rshared
+      - ./config/:/app
+    devices:
+      - /dev/fuse:/dev/fuse:rwm
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.decypharr.rule=Host(`decypharr.${DOMAIN}`)"
+      - "traefik.http.routers.decypharr.entrypoints=websecure"
+      - "traefik.http.routers.decypharr.tls=true"
+      - "traefik.http.routers.decypharr.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.decypharr.tls.domains[0].main=${DOMAIN}"
+      - "traefik.http.routers.decypharr.tls.domains[0].sans=*.${DOMAIN}"
+      - "traefik.http.routers.decypharr.middlewares=gzip-compress@docker"
+      - "traefik.http.services.decypharr.loadbalancer.server.port=8282"
+      - "dns.cloudflare.content=${LOCAL_IP}"
+    restart: unless-stopped
+
   radarr:
     container_name: radarr
     image: lscr.io/linuxserver/radarr:5.28.0
