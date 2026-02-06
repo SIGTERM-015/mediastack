@@ -94,7 +94,8 @@ services:
       - PGID=${PGID}
     volumes:
       - /mnt/:/mnt:rshared
-      - ./config/:/app
+      - ./config/decypharr:/app
+      - ${MEDIA_PATH}/torrents:/downloads
     devices:
       - /dev/fuse:/dev/fuse:rwm
     cap_add:
